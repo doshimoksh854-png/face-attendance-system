@@ -335,7 +335,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 👨‍💻 Author
 
    Moksh Doshi
-- GitHub: [@doshimoksh854](https://github.com/doshimoksh854)
+- GitHub: [@doshimoksh854-png](https://github.com/doshimoksh854-png)
 - Email: doshimoksh854@gmail.com
 ## 🙏 Acknowledgments
 

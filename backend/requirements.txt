@@ -1,0 +1,12 @@
+flask
+flask-sqlalchemy
+flask-cors
+flask-migrate
+flask-jwt-extended
+deepface
+pandas
+numpy
+python-dotenv
+werkzeug
+email_validator
+tf-keras

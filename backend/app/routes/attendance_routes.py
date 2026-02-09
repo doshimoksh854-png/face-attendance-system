@@ -90,3 +90,56 @@ def get_history():
     current_user_id = get_jwt_identity()
     attendances = Attendance.query.filter_by(student_id=int(current_user_id)).order_by(Attendance.timestamp.desc()).all()
     return jsonify([a.to_dict() for a in attendances]), 200
+
+@bp.route('/stats', methods=['GET'])
+@jwt_required()
+def get_attendance_stats():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(int(current_user_id))
+    
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+        
+    # Calculate total sessions for classes the student is enrolled in
+    total_sessions = 0
+    now = datetime.utcnow()
+    
+    for enrolled_class in user.enrolled_classes:
+        # Count sessions that have already started
+        class_sessions_count = enrolled_class.sessions.filter(AttendanceSession.start_time <= now).count()
+        total_sessions += class_sessions_count
+    
+    if total_sessions == 0:
+        return jsonify({
+            'total_classes': 0,
+            'attended': 0,
+            'percentage': 0.0,
+            'status': 'No classes yet'
+        }), 200
+    
+    # Count present records (status = 'present')
+    present_records = Attendance.query.filter_by(
+        student_id=int(current_user_id),
+        status='present'
+    ).count()
+    
+    # Calculate percentage
+    percentage = round((present_records / total_sessions) * 100, 2)
+    
+    # Determine status based on percentage
+    if percentage >= 85:
+        status = 'excellent'
+    elif percentage >= 75:
+        status = 'good'
+    elif percentage >= 60:
+        status = 'average'
+    else:
+        status = 'poor'
+    
+    return jsonify({
+        'total_classes': total_sessions,
+        'attended': present_records,
+        'percentage': percentage,
+        'status': status
+    }), 200
+

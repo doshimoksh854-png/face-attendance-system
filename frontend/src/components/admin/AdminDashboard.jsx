@@ -11,7 +11,9 @@ import { useNavigate } from 'react-router-dom';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
+import DownloadIcon from '@mui/icons-material/Download';
 import FaceUpdateRequests from './FaceUpdateRequests';
+import ThemeToggle from '../common/ThemeToggle';
 
 const AdminDashboard = () => {
   const { logout } = useAuth();
@@ -106,11 +108,35 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleExportAttendance = async () => {
+    try {
+      const response = await api.get('/admin/export-attendance', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'attendance_records.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setMessage('Attendance exported successfully!');
+    } catch (err) {
+      setError('Failed to export attendance');
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">🛡️ Admin Dashboard</Typography>
-        <Button variant="outlined" color="error" onClick={() => { logout(); navigate('/login'); }}>Logout</Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <ThemeToggle />
+          <Button variant="contained" color="success" startIcon={<DownloadIcon />} onClick={handleExportAttendance}>
+            Export Attendance
+          </Button>
+          <Button variant="outlined" color="error" onClick={() => { logout(); navigate('/login'); }}>Logout</Button>
+        </Box>
       </Box>
 
       {/* Stats Section */}

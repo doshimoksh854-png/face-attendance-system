@@ -211,3 +211,76 @@ def face_update_status():
         'has_request': True,
         'request': latest_request.to_dict()
     }), 200
+
+# Password Reset Routes
+@bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    from app.models.password_reset import PasswordResetToken
+    data = request.get_json()
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'message': 'Email is required'}), 400
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        # For security, don't reveal if email exists
+        return jsonify({'message': 'If email exists, password reset link has been sent'}), 200
+    
+    # Create reset token
+    reset_token = PasswordResetToken(user_id=user.id)
+    db.session.add(reset_token)
+    db.session.commit()
+    
+   # Send email with reset link
+    # For development: use localhost, for production: use your domain
+    reset_link = f'http://localhost:5173/reset-password?token={reset_token.token}'
+    
+    # Try to send email
+    from app.services.email_service import send_password_reset_email
+    email_sent = send_password_reset_email(user.email, reset_link)
+    
+    if email_sent:
+        # Email sent successfully
+        return jsonify({
+            'message': 'Password reset link has been sent to your email',
+        }), 200
+    else:
+        # Email failed - show link in development mode
+        print(f'Failed to send email. Reset link: {reset_link}')
+        return jsonify({
+            'message': 'Email sending failed. Check configuration.',
+            'reset_link': reset_link  # Show link as fallback in dev mode
+        }), 200
+
+
+@bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    from app.models.password_reset import PasswordResetToken
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('password')
+    
+    if not token or not new_password:
+        return jsonify({'message': 'Token and password are required'}), 400
+    
+    # Find token
+    reset_token = PasswordResetToken.query.filter_by(token=token).first()
+    
+    if not reset_token:
+        return jsonify({'message': 'Invalid or expired reset link'}), 400
+    
+    if not reset_token.is_valid():
+        return jsonify({'message': 'Reset link has expired or already been used'}), 400
+    
+    # Update password
+    user = User.query.get(reset_token.user_id)
+    user.set_password(new_password)
+    
+    # Mark token as used
+    reset_token.used = True
+    db.session.commit()
+    
+    return jsonify({'message': 'Password reset successfully'}), 200
+
+

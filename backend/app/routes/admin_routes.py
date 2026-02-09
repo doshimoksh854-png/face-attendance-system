@@ -182,3 +182,84 @@ def deny_face_update_request(request_id):
     
     return jsonify({'message': 'Request denied.'}), 200
 
+
+
+# --- Export Attendance to Excel ---
+@bp.route('/export-attendance', methods=['GET'])
+@jwt_required()
+def export_attendance():
+    from flask import send_file
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from app.models.attendance import Attendance
+    from app.models.class_model import AttendanceSession
+    import io
+    
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(int(current_user_id))
+    if not current_user or current_user.role != 'admin':
+        return jsonify({'message': 'Access forbidden'}), 403
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Attendance Records'
+    
+    # Header style
+    header_fill = PatternFill(start_color='4F81BD', end_color='4F81BD', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    
+    # Headers
+    headers = ['Student ID', 'Student Name', 'Email', 'Class', 'Subject', 'Date', 'Time', 'Status', 'Confidence Percent']
+    ws.append(headers)
+    
+    # Style headers
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Fetch all attendance records
+    attendances = Attendance.query.join(User).join(AttendanceSession).all()
+    
+    # Add data rows
+    for att in attendances:
+        confidence_pct = round(att.confidence_score * 100, 2) if att.confidence_score else 'N/A'
+        ws.append([
+            att.student.id,
+            att.student.full_name or att.student.username,
+            att.student.email,
+            att.session.class_obj.name if att.session.class_obj else 'N/A',
+            att.session.class_obj.code if att.session.class_obj else 'N/A',
+            att.timestamp.strftime('%Y-%m-%d'),
+            att.timestamp.strftime('%H:%M:%S'),
+            att.status,
+            confidence_pct
+        ])
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                cell_length = len(str(cell.value))
+                if cell_length > max_length:
+                    max_length = cell_length
+            except:
+                pass
+        adjusted_width = max_length + 2
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='attendance_records.xlsx'
+    )
+

@@ -9,6 +9,8 @@ import StudentDashboard from './components/student/StudentDashboard';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import FaceRegistration from './components/auth/FaceRegistration';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 import { CircularProgress, Box } from '@mui/material';
 
 const PrivateRoute = ({ children, roles }) => {
@@ -35,6 +37,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/face-register" element={
           <PrivateRoute roles={['student', 'teacher', 'admin']}>

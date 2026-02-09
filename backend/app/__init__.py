@@ -13,6 +13,10 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
     
+    # Initialize mail
+    from .services.email_service import mail
+    mail.init_app(app)
+    
     @jwt.invalid_token_loader
     def invalid_token_callback(error):
         print(f"DEBUG: Invalid Token: {error}")

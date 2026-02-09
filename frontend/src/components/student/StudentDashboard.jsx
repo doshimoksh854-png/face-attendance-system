@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Container, Grid, Paper, Typography, Box, Button, TextField, List, ListItem, ListItemText, Divider, Chip } from '@mui/material';
+import { Container, Grid, Paper, Typography, Box, Button, TextField, List, ListItem, ListItemText, Divider, Chip, Card, CardContent, LinearProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import MarkAttendance from './MarkAttendance';
 import AttendanceHistory from './AttendanceHistory';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ThemeToggle from '../common/ThemeToggle';
 
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
   const [classes, setClasses] = useState([]);
   const [availableClasses, setAvailableClasses] = useState([]);
   const [classCode, setClassCode] = useState('');
-  const [activeTab, setActiveTab] = useState('classes'); // classes, mark, history
+  const [activeTab, setActiveTab] = useState('classes');
+  const [attendanceStats, setAttendanceStats] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchClasses();
     fetchAvailableClasses();
+    fetchAttendanceStats();
   }, []);
 
   const fetchClasses = async () => {
@@ -37,15 +41,44 @@ const StudentDashboard = () => {
     }
   };
 
+  const fetchAttendanceStats = async () => {
+    try {
+      const res = await api.get('/attendance/stats');
+      setAttendanceStats(res.data);
+    } catch (err) {
+      console.error("Failed to fetch attendance stats", err);
+    }
+  };
+
   const joinClass = async () => {
     try {
       await api.post('/classes/join', { code: classCode });
       alert("Successfully joined class!");
       setClassCode('');
       fetchClasses();
-      fetchAvailableClasses(); // Refresh available list to show status
+      fetchAvailableClasses();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to join');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'excellent': return 'success';
+      case 'good': return 'info';
+      case 'average': return 'warning';
+      case 'poor': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'excellent': return '🎯 Excellent';
+      case 'good': return '✅ Good';
+      case 'average': return '⚠️ Average';
+      case 'poor': return '❌ Poor';
+      default: return 'N/A';
     }
   };
 
@@ -53,8 +86,70 @@ const StudentDashboard = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">👋 Welcome, {user?.username}</Typography>
-        <Button variant="outlined" color="error" onClick={() => { logout(); navigate('/login'); }}>Logout</Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <ThemeToggle />
+          <Button variant="outlined" color="error" onClick={() => { logout(); navigate('/login'); }}>Logout</Button>
+        </Box>
       </Box>
+
+      {/* Attendance Stats Card */}
+      {attendanceStats && (
+        <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="h6" gutterBottom sx={{ opacity: 0.9 }}>
+                  📊 Attendance Overview
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 3, mt: 2 }}>
+                  <Box>
+                    <Typography variant="h3" fontWeight="bold">
+                      {attendanceStats.percentage}%
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                      Overall Attendance
+                    </Typography>
+                  </Box>
+                  <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.3)' }} />
+                  <Box>
+                    <Typography variant="h4">
+                      {attendanceStats.attended}/{attendanceStats.total_classes}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                      Classes Attended
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Chip
+                  label={getStatusLabel(attendanceStats.status)}
+                  color={getStatusColor(attendanceStats.status)}
+                  size="large"
+                  sx={{ fontSize: '1.1rem', py: 3, px: 2 }}
+                />
+              </Box>
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <LinearProgress
+                variant="determinate"
+                value={attendanceStats.percentage}
+                sx={{
+                  height: 8,
+                  borderRadius: 4,
+                  bgcolor: 'rgba(255,255,255,0.3)',
+                  '& .MuiLinearProgress-bar': {
+                    bgcolor: attendanceStats.percentage >= 75 ? '#4caf50' : '#f44336'
+                  }
+                }}
+              />
+              <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.8 }}>
+                {attendanceStats.percentage >= 75 ? '✅ You are meeting attendance requirements (≥75%)' : '⚠️ Warning: Below required attendance (75%)'}
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
       <Grid container spacing={3}>
         {/* Sidebar / Menu */}

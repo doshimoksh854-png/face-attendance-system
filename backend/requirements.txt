@@ -1,3 +1,4 @@
+Flask-Mail
 flask
 flask-sqlalchemy
 flask-cors
